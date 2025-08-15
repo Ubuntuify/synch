@@ -1,21 +1,27 @@
 use agdb::{Db, QueryBuilder, QueryError};
+use tauri::Manager;
+use tokio::sync::Mutex;
 use tracing::{event, Level};
 
 pub mod db;
 pub mod structs;
+pub mod tauri_commands;
 pub mod user;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
-        // .invoke_handler(tauri::generate_handler![/* your commands here */])
+        .setup(|app| {
+            app.manage(Mutex::new(Db::new("app.agdb")));
+            Ok(())
+        })
+        .invoke_handler(tauri::generate_handler![
+            crate::tauri_commands::get_current_classes
+        ])
         // You can add plugins here, for example:
         // .plugin(tauri_plugin_deep_link::init())
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
-
-    let mut db = Db::new("schedule.agdb").unwrap();
-    crate::init_db(&mut db).expect("database was not able to be initialized");
 }
 
 #[tracing::instrument]

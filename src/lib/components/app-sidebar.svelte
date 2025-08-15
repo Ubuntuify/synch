@@ -2,8 +2,7 @@
   import * as Sidebar from "$lib/components/ui/sidebar/index.js";
   import HouseIcon from "@lucide/svelte/icons/house";
   import SettingsIcon from "@lucide/svelte/icons/settings";
-
-  let { children } = $props();
+  import type { ComponentProps } from "svelte";
 
   const items = [
     {
@@ -17,13 +16,18 @@
       icon: SettingsIcon,
     },
   ];
+
+  let {
+    ref = $bindable(null),
+    ...restProps
+  }: ComponentProps<typeof Sidebar.Root> = $props();
 </script>
 
-<Sidebar.Root>
+<Sidebar.Root {...restProps}>
   <Sidebar.Header />
   <Sidebar.Content>
     <Sidebar.Group />
-    <Sidebar.GroupLabel>Schedule</Sidebar.GroupLabel>
+    <Sidebar.GroupLabel>Application</Sidebar.GroupLabel>
     <Sidebar.GroupContent>
       <Sidebar.Menu>
         {#each items as item (item.title)}

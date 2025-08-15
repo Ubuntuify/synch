@@ -1,5 +1,5 @@
 use agdb::{Db, QueryBuilder, QueryError, QueryId};
-use chrono::{Local, NaiveTime};
+use chrono::{Datelike, Local, NaiveTime};
 use tracing::{debug, info};
 
 use crate::structs::{Class, ScheduleTimeSlotEntry};
@@ -8,27 +8,38 @@ use crate::structs::{Class, ScheduleTimeSlotEntry};
 fn get_current_schedule(db: &Db) -> Result<Vec<ScheduleTimeSlotEntry>, QueryError> {
     info!("Starting search for current schedule time slot.");
 
-    let mut schedule_entries = crate::db::list_time_slots(db, None)?;
+    let mut entries = crate::db::list_time_slots(db, None)?;
 
     debug!(
         "Found {} schedule entries available, searching through them.",
-        schedule_entries.len()
+        entries.len()
     );
 
-    schedule_entries.retain(|t| {
-        let current_time = Local::now().time();
+    entries.retain(|t| {
         let start_time = NaiveTime::parse_from_str(&t.start_time, t.time_format()).unwrap();
         let end_time = NaiveTime::parse_from_str(&t.end_time, t.time_format()).unwrap();
+        let is_time = start_time <= Local::now().time() && Local::now().time() < end_time;
 
-        start_time <= current_time && current_time < end_time
+        let weekday = match t.slot_metadata / 8 {
+            1 => Some(chrono::Weekday::Mon),
+            2 => Some(chrono::Weekday::Tue),
+            3 => Some(chrono::Weekday::Wed),
+            4 => Some(chrono::Weekday::Thu),
+            5 => Some(chrono::Weekday::Fri),
+            6 => Some(chrono::Weekday::Sat),
+            7 => Some(chrono::Weekday::Sun),
+            _ => None,
+        };
+
+        weekday.unwrap() == Local::now().weekday() && is_time
     });
 
     debug!(
         "Found {} schedule_entry instances that are current.",
-        schedule_entries.len()
+        entries.len()
     );
 
-    Ok(schedule_entries)
+    Ok(entries)
 }
 
 #[tracing::instrument]
@@ -41,7 +52,7 @@ pub fn current_classes(db: &Db) -> Result<Vec<Class>, QueryError> {
 
         // TODO: find out why it won't work with key restriction
 
-        let class = t
+        let class: Vec<Class> = t
             .exec(
                 QueryBuilder::select()
                     .elements::<Class>()
@@ -53,6 +64,6 @@ pub fn current_classes(db: &Db) -> Result<Vec<Class>, QueryError> {
             )?
             .try_into()?;
 
-        Ok(vec![class])
+        Ok(class)
     })
 }
